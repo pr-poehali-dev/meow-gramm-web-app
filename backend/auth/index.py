@@ -110,14 +110,16 @@ def handler(event: dict, context) -> dict:
         pwd_hash = hash_password(password)
         cur = conn.cursor()
         cur.execute(
-            f"SELECT id, username, display_name, avatar, role FROM {SCHEMA}.users "
+            f"SELECT id, username, display_name, avatar, role, is_blocked FROM {SCHEMA}.users "
             f"WHERE username = '{username}' AND password_hash = '{pwd_hash}'"
         )
         row = cur.fetchone()
         if not row:
             return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "Неверный логин или пароль"})}
+        if row[5]:
+            return {"statusCode": 403, "headers": CORS, "body": json.dumps({"error": "Аккаунт заблокирован администратором"})}
 
-        user_id, uname, dname, avatar, role = row
+        user_id, uname, dname, avatar, role, _ = row
         cur.execute(f"UPDATE {SCHEMA}.users SET status = 'online', last_seen = NOW() WHERE id = {user_id}")
 
         tok = secrets.token_hex(32)

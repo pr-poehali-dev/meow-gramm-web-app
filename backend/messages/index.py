@@ -49,6 +49,13 @@ def handler(event: dict, context) -> dict:
     if not me:
         return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "Не авторизован"})}
 
+    # Проверяем, не заблокирован ли текущий пользователь
+    cur0 = conn.cursor()
+    cur0.execute(f"SELECT is_blocked FROM {SCHEMA}.users WHERE id = {me['id']}")
+    row0 = cur0.fetchone()
+    if row0 and row0[0]:
+        return {"statusCode": 403, "headers": CORS, "body": json.dumps({"error": "Аккаунт заблокирован"})}
+
     my_id = me["id"]
     cur = conn.cursor()
 

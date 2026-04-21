@@ -17,6 +17,7 @@ interface User {
   last_seen?: string;
   unread?: number;
   message_count?: number;
+  is_blocked?: boolean;
 }
 
 interface Message {
@@ -304,6 +305,15 @@ export default function Index() {
     setAdminTab("messages");
     const data = await api(`${MESSAGES_URL}?with=${user.id}`, {}, token);
     if (Array.isArray(data)) setAdminMessages(data);
+  };
+
+  const toggleBlock = async (user: User) => {
+    const newBlocked = !user.is_blocked;
+    await api(`${USERS_URL}/block`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: user.id, blocked: newBlocked }),
+    }, token);
+    await loadAdminUsers();
   };
 
   const totalUnread = chats.reduce((s, c) => s + (c.unread || 0), 0);
@@ -622,32 +632,34 @@ export default function Index() {
                       {adminUsers.map((user, i) => (
                         <tr
                           key={user.id}
-                          className={`border-t border-white/5 hover:bg-white/[0.03] transition-colors animate-fade-slide-up cursor-pointer ${adminSelectedUser?.id === user.id ? "bg-purple-500/5" : ""}`}
+                          className={`border-t border-white/5 hover:bg-white/[0.03] transition-colors animate-fade-slide-up ${user.is_blocked ? "opacity-60" : ""} ${adminSelectedUser?.id === user.id ? "bg-purple-500/5" : ""}`}
                           style={{ animationDelay: `${i * 0.05}s` }}
-                          onClick={() => loadAdminMessages(user)}
                         >
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => loadAdminMessages(user)}>
                             <div className="flex items-center gap-3">
                               <div className="relative">
-                                <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-lg">{user.avatar}</div>
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${user.is_blocked ? "bg-red-500/10 border border-red-500/20" : "bg-white/5"}`}>{user.avatar}</div>
                                 <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0d0d18] ${statusColor(user.status)}`} />
                               </div>
-                              <span className="text-sm font-medium text-white">{user.display_name}</span>
+                              <div>
+                                <span className="text-sm font-medium text-white">{user.display_name}</span>
+                                {user.is_blocked && <span className="ml-2 text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md">заблокирован</span>}
+                              </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/50">@{user.username}</td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-sm text-white/50 cursor-pointer" onClick={() => loadAdminMessages(user)}>@{user.username}</td>
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => loadAdminMessages(user)}>
                             <span className={`text-xs px-2.5 py-1 rounded-lg font-medium ${user.role === "admin" ? "bg-pink-500/15 text-pink-400 border border-pink-500/30" : user.role === "moderator" ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30" : "bg-white/5 text-white/40 border border-white/10"}`}>
                               {user.role === "admin" ? "Админ" : user.role === "moderator" ? "Модератор" : "Участник"}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => loadAdminMessages(user)}>
                             <span className={`text-xs ${user.status === "online" ? "text-green-400" : "text-white/30"}`}>
                               {user.status === "online" ? "● Онлайн" : "○ Оффлайн"}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-white/60">{user.message_count || 0}</td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 text-sm text-white/60 cursor-pointer" onClick={() => loadAdminMessages(user)}>{user.message_count || 0}</td>
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => loadAdminMessages(user)}>
                             {(user.unread || 0) > 0 ? (
                               <span className="notification-badge text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
                                 {user.unread}
@@ -657,9 +669,24 @@ export default function Index() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <button className="w-7 h-7 rounded-lg glass hover:neon-glow transition-all flex items-center justify-center text-white/40 hover:text-purple-400">
-                              <Icon name="Eye" size={13} />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => loadAdminMessages(user)}
+                                className="w-7 h-7 rounded-lg glass hover:neon-glow transition-all flex items-center justify-center text-white/40 hover:text-purple-400"
+                                title="Смотреть переписку"
+                              >
+                                <Icon name="Eye" size={13} />
+                              </button>
+                              {user.role !== "admin" && me?.role === "admin" && (
+                                <button
+                                  onClick={() => toggleBlock(user)}
+                                  className={`w-7 h-7 rounded-lg transition-all flex items-center justify-center ${user.is_blocked ? "bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30" : "glass hover:bg-red-500/15 text-white/40 hover:text-red-400"}`}
+                                  title={user.is_blocked ? "Разблокировать" : "Заблокировать"}
+                                >
+                                  <Icon name={user.is_blocked ? "ShieldOff" : "Ban"} size={13} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
