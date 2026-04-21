@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "GET chats without token",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401,
+      "bodyMatcher": "partial",
+      "expectedBody": {"error": "string"}
+    }
+  ]
+}
